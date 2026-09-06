@@ -172,15 +172,17 @@ async def cmd_show_queue(message: Message):
     # Формируем список участников
     lines = [f"📋 <b>{queue['name']}</b>\n"]
     for member in members:
-        user_mention = get_user_mention(
-            member['user_id'],
-            member['username'],
-            member['full_name']
-        )
-        lines.append(f"{member['position']}. {user_mention}")
-    
-    await message.answer("\n".join(lines))
+        # Используем full_name или username без создания ссылки/упоминания
+        if member['full_name']:
+            user_display = member['full_name']
+        elif member['username']:
+            user_display = member['username']  # Без @ чтобы не вызывать уведомление
+        else:
+            user_display = f"User {member['user_id']}"
 
+        lines.append(f"{member['position']}. {user_display}")
+
+    await message.answer("\n".join(lines))
 
 @router.message(Command("next"))
 async def cmd_next_in_queue(message: Message):
