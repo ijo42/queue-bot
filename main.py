@@ -4,6 +4,7 @@ import os
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, BotCommandScopeAllGroupChats
 
@@ -18,14 +19,17 @@ logger = logging.getLogger(__name__)
 
 # Конфигурация
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+PROXY_URL = os.getenv("HTTP_PROXY")
 
-# Инициализация бота и диспетчера
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher()
+async def create_bot():
+    session = AiohttpSession(proxy=PROXY_URL)
 
-# Подключаем роутер с обработчиками
-dp.include_router(router)
+    # Создаем бота с сессией через прокси
+    bot = Bot(token=BOT_TOKEN, session=session, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    dp = Dispatcher()
+    dp.include_router(router)
 
+    return bot, dp
 
 async def set_bot_commands(bot: Bot):
     """Регистрация команд бота"""
@@ -48,15 +52,18 @@ async def set_bot_commands(bot: Bot):
 
 async def main():
     """Основная функция"""
+    bot, dp = await create_bot()
     if not BOT_TOKEN:
         logger.error("Не задан BOT_TOKEN в переменных окружения")
         return
 
-    # Регистрируем команды
-    await set_bot_commands(bot)
-    
-    logger.info("Бот интерактивной очереди запускается...")
-    await dp.start_polling(bot)
+    try:
+        await set_bot_commands(bot)
+        logger.info("Бот интерактивной очереди запускается...")
+        await dp.start_polling(bot)
+    finally:
+        # Properly close the bot's session
+        await bot.session.close()
 
 
 if __name__ == "__main__":
